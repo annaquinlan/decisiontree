@@ -99,7 +99,7 @@ def main():
 # Classifies data item by recursively traversing tree created by DTL, using item's attribute values to choose path
 def classify(example, node, attr_dict):
 
-    if isinstance(node, answer_node):
+    if node.isanswer:
         return node
     
     ex_val_in = attr_dict[node.attr][0]
@@ -117,7 +117,7 @@ def DTL(examples, attr_dict, parents, count, value, print_bool):
     if len(examples) == 0:
         
         classif = get_plurality(parents)[0]
-        node = answer_node(classif, value, 0, 0)
+        node = Node(classif, value, 0, 0, None, True)
         if print_bool:
             print ": " + classif
         return node
@@ -134,7 +134,7 @@ def DTL(examples, attr_dict, parents, count, value, print_bool):
         else:
             p = 0
             n = len(examples)
-        node = answer_node(classif, value, p, n)
+        node = Node(classif, value, p, n, None, True)
         if print_bool:
             print ": " + classif
         return node
@@ -148,7 +148,7 @@ def DTL(examples, attr_dict, parents, count, value, print_bool):
         else:
             p = len(examples)-count
             n = count
-        node = answer_node(classif, value, p, n)
+        node = Node(classif, value, p, n, None, True)
         if print_bool:
             print ": " + classif
         return node
@@ -165,7 +165,7 @@ def DTL(examples, attr_dict, parents, count, value, print_bool):
         else:
             p = len(examples)-count
             n = count
-        node = choice_node(attr, value, p, n)
+        node = Node(None, value, p, n, attr, False)
         values = list(attr_dict[attr][1])
         index = attr_dict[attr][0]
         
@@ -198,44 +198,40 @@ def prune(node):
     observed = []
     expected = []
     for child in node.children:
-        if isinstance(child, choice_node):
+        if not(child.isanswer):
             can_prune = False
+            prune(child)
         else:
             observed.append(child.pos)
-            expected.append(node.pos*((child.pos+child.neg)/(node.pos+node.neg))
-    if can_prune:
+            expected.append(node.pos*((child.pos+child.neg)/(node.pos+node.neg)))
+    if (can_prune):
         df = len(observed) - 1
         test_stat = scipy.stats.chisquare(observes,expected,df)
-        if test_stat < 0.05:
-            
+        if test_stat > 0.05:
+            if node.pos > node.neg:
+                node.classif = "yes"
+            else:
+                node.classif = "no"
+            node.children = []
+            node.attr = None
+            node.isanswer = True
             
         
 # The classification of a group of split examples.
-class answer_node:
-    def __init__(self, classif, value, pos, neg):
+class Node:
+    def __init__(self, classif, value, pos, neg, attr, answer):
         self.classif = classif
+        self.attr = attr
         self.value = value
         self.pos = pos
         self.neg = neg
+        self.isanswer = answer
+        self.children = []
         
     def __str__(self):
     	return self.classif
-
-# The attribute split on and nodes resulting from the split.
-class choice_node:
-    def __init__(self, attr, value, pos, neg):
-        self.attr = attr
-        self.children = []
-        self.value = value
-        self.pos = pos
-        self.neg = neg
         
-    def __str__(self):
-    	print "--- choice node ---"
-    	print self.attr
-    	for child in self.children:
-    	    print "*"
-    	return "---"
+
 
 '''    	
 def print_tree(node, attr_dict):
