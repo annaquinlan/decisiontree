@@ -41,19 +41,53 @@ def main():
             ### keep track of all possible classifications
             for i, a in enumerate(attrs):
                 attr_dict[a][1].add(ex_attrs[i])
+        
+        # This is tree trained on all data.
+        print_bool = True
+        node = DTL(examples, attr_dict, [], 0, None, print_bool)
+        
+        # Tree trained on all examples except one
+        denom = len(examples)
+        num = 0.0
+        print_bool = False
+        for i, ex in enumerate(examples):
+            subset = examples[0:i] + examples[i+1:]
+            node = DTL(subset, attr_dict, [], 0, None, print_bool)
+            print "--------"
+            print i, str(ex)
+            result = classify(ex, node, attr_dict)
+            print result.classif
+            if result.classif == ex[-1]:
+                num += 1
+        print "Accuracy on training set: ",
+        n = (num*100.0)/denom
+        print ( "%.2f" % n),
+        print "%"
+                
+    
+def classify(example, node, attr_dict):
 
-        node = DTL(examples, attr_dict, [], 0)
+    if isinstance(node, answer_node):
+        return node
+    
+    ex_val_in = attr_dict[node.attr][0]
+    ex_val = example[0][ex_val_in]
+    
+    for child in node.children:
+        if child.value == ex_val:
+            return classify(example, child, attr_dict)
         
 # Implementation of decision tree learning algorithm, with printing
-def DTL(examples, attr_dict, parents, count):
+def DTL(examples, attr_dict, parents, count, value, print_bool):
     attributes = attr_dict.keys()
     
     # Case 1: If there are no more examples:
     if len(examples) == 0:
         
         classif = get_plurality(parents)[0]
-        node = answer_node(classif)
-        print ": " + classif
+        node = answer_node(classif, value)
+        if print_bool:
+            print ": " + classif
         return node
         
     # Case 2: All examples have the same classification:
@@ -62,22 +96,25 @@ def DTL(examples, attr_dict, parents, count):
         
         # We'll just take the classification of the first example because they're all the same.
         classif = examples[0][-1]
-        node = answer_node(classif)
-        print ": " + classif
+        node = answer_node(classif, value)
+        if print_bool:
+            print ": " + classif
         return node
         
     # Case 3: If the attributes list is empty:
     elif len(attributes) == 0:
         classif = get_plurality(examples)[0]
-        node = answer_node(classif)
-        print ": " + classif
+        node = answer_node(classif, value)
+        if print_bool:
+            print ": " + classif
         return node
     
     # Case 4: Recursive case. 
     else:
-        print
+        if print_bool:
+            print
         attr = get_best_attr(attr_dict, examples)
-        node = choice_node(attr)
+        node = choice_node(attr, value)
         values = list(attr_dict[attr][1])
         index = attr_dict[attr][0]
         
@@ -97,24 +134,27 @@ def DTL(examples, attr_dict, parents, count):
         # Recurse on each group of split examples.
         for val in values:
             subexamples = exsbyvals_dict[val]
-            print count*'| ' + str(attr) + " = " + str(val),
-            child = DTL(subexamples, subattr_dict, examples, count+1)
+            if print_bool:
+                print count*'| ' + str(attr) + " = " + str(val),
+            child = DTL(subexamples, subattr_dict, examples, count+1, val, print_bool)
             node.children.append(child)
         return node
         
 # The classification of a group of split examples.
 class answer_node:
-    def __init__(self, classif):
+    def __init__(self, classif, value):
         self.classif = classif
+        self.value = value
         
     def __str__(self):
-    	print ": " + str(self.classif)
+    	return self.classif
 
 # The attribute split on and nodes resulting from the split.
 class choice_node:
-    def __init__(self, attr):
+    def __init__(self, attr, value):
         self.attr = attr
         self.children = []
+        self.value = value
         
     def __str__(self):
     	print "--- choice node ---"
