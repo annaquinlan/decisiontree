@@ -1,5 +1,6 @@
 '''
 decisiontree.py
+note that this will work even for non-binary classifications
 '''
 import sys
 
@@ -7,72 +8,83 @@ def main():
     if len(sys.argv) != 2:
         sys.stderr.write('Usage: python decisiontree.py name_of_file.txt')
         sys.exit(1)
+    
     else:
         f = open(sys.argv[1], 'r')
         text = f.readlines()
         
+        # get the column headers, separate attributes from classification (last col)
         columns = text[0].strip('\n')
         splitted = columns.split('\t')
         classif = splitted[-1]
         attrs = splitted[0:-1]
         
+        # store attributes in a dictionary: { attr_name : [column index, set(possible values)] }
         attr_dict = {}
-        
         for i, a in enumerate(attrs):
             attr_dict[a] = [i, set([])]
         
+        # parse each example into: [ [vals of each attribute], classification]
         data = text[1:]
         examples = []
         all_classifs = set([])
         
         for line in data:
             cleanline = line.strip('\n')
-            dataitems = cleanline.split('\t')
+            example = cleanline.split('\t')
             
-            chars = dataitems[0:-1]
-            result = dataitems[-1]
+            ex_attrs = example[0:-1]
+            ex_classif = example[-1]
             
-            examples.append([chars, result])
+            examples.append([ex_attrs, ex_classif])
             
+            ### keep track of all possible attribute values (in attr_dict)
+            ### keep track of all possible classifications
             for i, a in enumerate(attrs):
-                attr_dict[a][1].add(chars[i])
-            all_classifs.add(result)
+                attr_dict[a][1].add(ex_attrs[i])
+            all_classifs.add(ex_classif)
 
-        DTL(examples, attr_dict, [], all_classifs)
-
-# [
-#    [ [attribute1, attribute2, ...], classification]
-# ]
-def DTL(examples, attr_dict, parents, all_classifs):
+        node = DTL(examples, attr_dict, [], all_classifs, 0)
+        print node
+        
+# Implementation of decision tree learning algorithm
+def DTL(examples, attr_dict, parents, all_classifs, count):
     attributes = attr_dict.keys()
-    #if there are no more examples:
-    #    make an answer node with plurality of parent examples
-    #    return node
+    
+    # Case 1: If there are no more examples:
     if len(examples) == 0:
+        
         classif = get_plurality(parents, all_classifs)[0]
         node = answer_node(classif)
+        print ": " + classif
         return node
         
-    #elif if all examples have the same classification:
-        #make answer node with that classification
-        #return answer node
+    # Case 2: All examples have the same classification:
+    # Number of examples with the dominant classification is the same as the number of examples.
     elif get_plurality(examples, all_classifs)[1] == len(examples):
+        
+        # We'll just take the classification of the first example because they're all the same.
         classif = examples[1][-1]
         node = answer_node(classif)
+        print ": " + classif
         return node
         
-    # elif if the attributes list is empty
-    #    make an answer node with the plurality of the current examples
-    #    return answer node
+    # Case 3: If the attributes list is empty:
     elif len(attributes) == 0:
         classif = get_plurality(examples, all_classifs)[0]
         node = answer_node(classif)
+        print ": " + classif
         return node
+    
+    # Case 4: Recursive case. 
     else:
+        print
         attr = get_best_attr(attributes)
         node = choice_node(attr)
         values = list(attr_dict[attr][1])
         index = attr_dict[attr][0]
+        
+        # Sort examples by values of best attribute.
         exsbyvals_dict = {}
         for val in values:
             exsbyvals_dict[val] = []
@@ -81,24 +93,49 @@ def DTL(examples, attr_dict, parents, all_classifs):
             exval = ex[0][index]
             exsbyvals_dict[exval].append(ex)
         
+        # Delete best attribute from dictionary of attributes.
         subattr_dict = dict(attr_dict)
         del subattr_dict[attr]
+        
+        # Recurse on each group of split examples.
         for val in values:
             subexamples = exsbyvals_dict[val]
-            child = DTL(subexamples, subattr_dict, examples, all_classifs)
+            print count*'| ' + str(attr) + " = " + str(val),
+            child = DTL(subexamples, subattr_dict, examples, all_classifs, count+1)
             node.children.append(child)
         return node
         
-        
+# The classification of a group of split examples.
 class answer_node:
     def __init__(self, classif):
         self.classif = classif
-    
+        
+    def __str__(self):
+    	print ": " + str(self.classif)
+
+# The attribute split on and nodes resulting from the split.
 class choice_node:
     def __init__(self, attr):
         self.attr = attr
         self.children = []
         
+    def __str__(self):
+    	print "--- choice node ---"
+    	print self.attr
+    	for child in self.children:
+    	    print "*"
+    	return "---"
+
+'''    	
+def print_tree(node):
+    if class(node) == answer_node:
+        print ": " + str(node.classif)
+    else:
+        print node.attr
+''' 
+
+# Get_plurality returns classification with highest percentage given example list and possible 
+# classifications. It also returns how many examples had that classification.
 def get_plurality(ex_list, classifs_set):
    
     count_dict = {}
