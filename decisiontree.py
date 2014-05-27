@@ -14,10 +14,9 @@ def main():
         f = open(sys.argv[1], 'r')
         text = f.readlines()
         
-        # get the column headers, separate attributes from classification (last col)
+        # get the column headers for attributes
         columns = text[0].strip('\n')
         splitted = columns.split('\t')
-        classif = splitted[-1]
         attrs = splitted[0:-1]
         
         # store attributes in a dictionary: { attr_name : [column index, set(possible values)] }
@@ -28,7 +27,6 @@ def main():
         # parse each example into: [ [vals of each attribute], classification]
         data = text[1:]
         examples = []
-        all_classifs = set([])
         
         for line in data:
             cleanline = line.strip('\n')
@@ -43,25 +41,24 @@ def main():
             ### keep track of all possible classifications
             for i, a in enumerate(attrs):
                 attr_dict[a][1].add(ex_attrs[i])
-            all_classifs.add(ex_classif)
 
-        node = DTL(examples, attr_dict, [], all_classifs, 0)
+        node = DTL(examples, attr_dict, [], 0)
         
 # Implementation of decision tree learning algorithm, with printing
-def DTL(examples, attr_dict, parents, all_classifs, count):
+def DTL(examples, attr_dict, parents, count):
     attributes = attr_dict.keys()
     
     # Case 1: If there are no more examples:
     if len(examples) == 0:
         
-        classif = get_plurality(parents, all_classifs)[0]
+        classif = get_plurality(parents)[0]
         node = answer_node(classif)
         print ": " + classif
         return node
         
     # Case 2: All examples have the same classification:
     # Number of examples with the dominant classification is the same as the number of examples.
-    elif get_plurality(examples, all_classifs)[1] == len(examples):
+    elif get_plurality(examples)[1] == len(examples):
         
         # We'll just take the classification of the first example because they're all the same.
         classif = examples[0][-1]
@@ -71,7 +68,7 @@ def DTL(examples, attr_dict, parents, all_classifs, count):
         
     # Case 3: If the attributes list is empty:
     elif len(attributes) == 0:
-        classif = get_plurality(examples, all_classifs)[0]
+        classif = get_plurality(examples)[0]
         node = answer_node(classif)
         print ": " + classif
         return node
@@ -101,7 +98,7 @@ def DTL(examples, attr_dict, parents, all_classifs, count):
         for val in values:
             subexamples = exsbyvals_dict[val]
             print count*'| ' + str(attr) + " = " + str(val),
-            child = DTL(subexamples, subattr_dict, examples, all_classifs, count+1)
+            child = DTL(subexamples, subattr_dict, examples, count+1)
             node.children.append(child)
         return node
         
@@ -136,7 +133,7 @@ def print_tree(node, attr_dict):
 
 # Get_plurality returns classification with highest percentage given example list and possible 
 # classifications. It also returns how many examples had that classification.
-def get_plurality(ex_list, classifs_set):
+def get_plurality(ex_list):
    
     yes_ct = 0
     no_ct = 0
@@ -165,7 +162,6 @@ def get_best_attr(attr_dict, examples):
             yes_ct += 1
         else:
             no_ct += 1
-    
     entropy = get_entropy(yes_ct/(len(examples)))
     
     attributes = attr_dict.keys()
