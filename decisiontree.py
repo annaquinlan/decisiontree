@@ -5,6 +5,7 @@ note that this will work even for non-binary classifications
 import sys
 import math
 import scipy.stats
+import numpy
 
 def main():
     if len(sys.argv) != 2:
@@ -44,58 +45,81 @@ def main():
                 attr_dict[a][1].add(ex_attrs[i])
         
         # This is tree trained on all data.
-        print_bool = True
-        chisq_bool = False
-        node = DTL(examples, attr_dict, [], 0, None, print_bool)
-        
-        # Tree trained on all examples except one
-        denom = len(examples)
-        num = 0.0
-        print_bool = False
-        for i, ex in enumerate(examples):
-            subset = examples[0:i] + examples[i+1:]
-            node = DTL(subset, attr_dict, [], 0, None, print_bool)
-            print "--------"
-            print i, str(ex)
-            result = classify(ex, node, attr_dict)
-            print result.classif
-            if result.classif == ex[-1]:
-                num += 1
-        print "Accuracy on training set: ",
-        n = (num*100.0)/denom
-        print ( "%.2f" % n),
-        print "%"
+        print
+        print "***Un-pruned tree, trained on all data:"
+        node = DTL(examples, attr_dict, [], 0, None)
         print_tree(node, 0)
         
-        '''
-         # This is tree trained on all data.
-        print_bool = True
-        node = DTL(examples, attr_dict, [], 0, None, print_bool)
+        denom = len(examples)
+        # Accuracy on training set
+        correct_alldata = 0.0
+        for ex in examples:
+            result = classify(ex, node, attr_dict)
+            if result.classif == ex[-1]:
+                correct_alldata += 1
+        print "Accuracy (unpruned) on training set: ",
+        accuracy_alldata = (correct_alldata*100.0)/denom
+        print ( "%.2f" % accuracy_alldata),
+        print "%"
         
-        # Prune tree
-        chi_sq_tree
-        # Tree trained on all examples except one
-        chi_sq_num = 0.0
-        print_bool = False
+        # Leave One Out
+        correct_leaveoneout = 0.0
         for i, ex in enumerate(examples):
             subset = examples[0:i] + examples[i+1:]
-            node = DTL(subset, attr_dict, [], 0, None, print_bool)
-            print "--------"
-            print i, str(ex)
+            node = DTL(subset, attr_dict, [], 0, None)
             result = classify(ex, node, attr_dict)
-            print result.classif
+            if result.classif == ex[-1]:
+                correct_leaveoneout += 1
+        print "Accuracy (unpruned) with leave-one-out cross-validation: ",
+        accuracy_leaveoneout = (correct_leaveoneout*100.0)/denom
+        print ( "%.2f" % accuracy_leaveoneout),
+        print "%"
+        
+        
+        # Prune tree
+        prune(node)
+        print
+        print "***Pruned tree, trained on all data:"
+        print_tree(node, 0)
+        
+        # Chi-Sq: accuracy on training set
+        correct_alldata_chisq = 0.0
+        for ex in examples:
+            result = classify(ex, node, attr_dict)
+            if result.classif == ex[-1]:
+                correct_alldata_chisq += 1
+        print
+        print "Accuracy (pruned) on training set: ",
+        accuracy_alldata_chisq = (correct_alldata_chisq*100.0)/denom
+        print ( "%.2f" % accuracy_alldata_chisq),
+        print "%"
+        
+        # Chi-Sq: Leave One Out
+        chi_sq_num = 0.0
+        for i, ex in enumerate(examples):
+            subset = examples[0:i] + examples[i+1:]
+            node = DTL(subset, attr_dict, [], 0, None)
+            prune(node)
+            result = classify(ex, node, attr_dict)
             if result.classif == ex[-1]:
                 chi_sq_num += 1
-        print "Accuracy on training set: ",
+        print
+        print "Accuracy (pruned) with leave-one-out cross-validation: ",
         chi_sq_n = (chi_sq_num*100.0)/denom
         print ( "%.2f" % chi_sq_n),
         print "%"
         
-        if chi_sq_num > num:
-            print "Chi-Square pruning improved accuracy by",
-            print (chi_sq_n - n),
+        print
+        if chi_sq_num > correct_leaveoneout:
+            print "Chi-Square pruning improved leave-one-out accuracy by",
+            print (chi_sq_n - accuracy_leaveoneout),
             print "%"
-        '''
+        elif chi_sq_num == correct_leaveoneout:
+            print "Chi-Square pruning did not change leave-one-out accuracy."
+        else:
+            print "Chi-Square pruning reduced leave-one-out accuracy by",
+            print (accuracy_leaveoneout - chi_sq_n),
+            print "%"
                 
 # Classifies data item by recursively traversing tree created by DTL, using item's attribute values to choose path
 def classify(example, node, attr_dict):
@@ -111,7 +135,7 @@ def classify(example, node, attr_dict):
             return classify(example, child, attr_dict)
         
 # Implementation of decision tree learning algorithm, with printing
-def DTL(examples, attr_dict, parents, count, value, print_bool):
+def DTL(examples, attr_dict, parents, count, value):
     attributes = attr_dict.keys()
     
     # Case 1: If there are no more examples:
@@ -119,8 +143,6 @@ def DTL(examples, attr_dict, parents, count, value, print_bool):
         
         classif = get_plurality(parents)[0]
         node = Node(classif, value, 0, 0, None, True)
-        if print_bool:
-            print ": " + classif
         return node
         
     # Case 2: All examples have the same classification:
@@ -136,8 +158,6 @@ def DTL(examples, attr_dict, parents, count, value, print_bool):
             p = 0
             n = len(examples)
         node = Node(classif, value, p, n, None, True)
-        if print_bool:
-            print ": " + classif
         return node
         
     # Case 3: If the attributes list is empty:
@@ -150,14 +170,10 @@ def DTL(examples, attr_dict, parents, count, value, print_bool):
             p = len(examples)-count
             n = count
         node = Node(classif, value, p, n, None, True)
-        if print_bool:
-            print ": " + classif
         return node
     
     # Case 4: Recursive case. 
     else:
-        if print_bool:
-            print
         attr = get_best_attr(attr_dict, examples)
         classif, count = get_plurality(examples)
         if classif == "yes":
@@ -186,29 +202,46 @@ def DTL(examples, attr_dict, parents, count, value, print_bool):
         # Recurse on each group of split examples.
         for val in values:
             subexamples = exsbyvals_dict[val]
-            if print_bool:
-                print count*'| ' + str(attr) + " = " + str(val),
-            child = DTL(subexamples, subattr_dict, examples, count+1, val, print_bool)
+            child = DTL(subexamples, subattr_dict, examples, count+1, val)
             node.children.append(child)
 
         return node
 
 # Implement chi-sq pruning
 def prune(node):
+    
+    if node.isanswer:
+        return
     can_prune = True
-    observed = []
-    expected = []
+    #observed = []
+    #expected = []
+    node_pos_float = float(node.pos)
+    node_neg_float = float(node.neg)
+    node_n = float(node.pos+node.neg)
+    test_stat = 0.0
     for child in node.children:
         if not(child.isanswer):
             can_prune = False
             prune(child)
         else:
-            observed.append(child.pos)
-            expected.append(node.pos*((child.pos+child.neg)/(node.pos+node.neg)))
+            obs_pos = float(child.pos)
+            obs_neg = float(child.neg)
+            if obs_pos < 5 and obs_neg < 5:
+                can_prune = False
+            else:
+                expected_neg = node_neg_float*((obs_pos + obs_neg)/node_n)
+                expected_pos = node_pos_float*((obs_pos + obs_neg)/node_n)
+                test_stat += math.pow((obs_pos-expected_pos), 2)/(expected_pos) 
+                test_stat += math.pow((obs_neg-expected_neg), 2)/(expected_neg) 
+                #observed.append(pos_float)
+                #expected.append(node_pos_float*((pos_float + neg_float)/node_n))
     if (can_prune):
-        df = len(observed) - 1
-        test_stat = scipy.stats.chisquare(observes,expected,df)
-        if test_stat > 0.05:
+        #print "observed: ", observed
+        #print "expected: ", expected
+        
+        df = len(node.children) - 1
+        pval = 1 - scipy.stats.chi2.cdf(test_stat, df)
+        if pval > 0.05:
             if node.pos > node.neg:
                 node.classif = "yes"
             else:
@@ -237,7 +270,8 @@ def print_tree(node, count):
     if node.isanswer:
         print ": " + node.classif
     else:
-        print
+        if count > 0:
+            print
         for child in node.children:
             print count*'| ' + node.attr + " = " + child.value,
             print_tree(child, count+1)
