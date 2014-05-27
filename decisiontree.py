@@ -117,7 +117,7 @@ def DTL(examples, attr_dict, parents, count, value, print_bool):
     if len(examples) == 0:
         
         classif = get_plurality(parents)[0]
-        node = answer_node(classif, value)
+        node = answer_node(classif, value, 0, 0)
         if print_bool:
             print ": " + classif
         return node
@@ -128,15 +128,27 @@ def DTL(examples, attr_dict, parents, count, value, print_bool):
         
         # We'll just take the classification of the first example because they're all the same.
         classif = examples[0][-1]
-        node = answer_node(classif, value)
+        if classif == 'yes':
+            p = len(examples)
+            n = 0
+        else:
+            p = 0
+            n = len(examples)
+        node = answer_node(classif, value, p, n)
         if print_bool:
             print ": " + classif
         return node
         
     # Case 3: If the attributes list is empty:
     elif len(attributes) == 0:
-        classif = get_plurality(examples)[0]
-        node = answer_node(classif, value)
+        classif, count = get_plurality(examples)
+        if classif == "yes":
+            p = count
+            n = len(examples)-count
+        else:
+            p = len(examples)-count
+            n = count
+        node = answer_node(classif, value, p, n)
         if print_bool:
             print ": " + classif
         return node
@@ -146,7 +158,14 @@ def DTL(examples, attr_dict, parents, count, value, print_bool):
         if print_bool:
             print
         attr = get_best_attr(attr_dict, examples)
-        node = choice_node(attr, value)
+        classif, count = get_plurality(examples)
+        if classif == "yes":
+            p = count
+            n = len(examples)-count
+        else:
+            p = len(examples)-count
+            n = count
+        node = choice_node(attr, value, p, n)
         values = list(attr_dict[attr][1])
         index = attr_dict[attr][0]
         
@@ -186,19 +205,23 @@ def prune(node):
         
 # The classification of a group of split examples.
 class answer_node:
-    def __init__(self, classif, value):
+    def __init__(self, classif, value, pos, neg):
         self.classif = classif
         self.value = value
+        self.pos = pos
+        self.neg = neg
         
     def __str__(self):
     	return self.classif
 
 # The attribute split on and nodes resulting from the split.
 class choice_node:
-    def __init__(self, attr, value):
+    def __init__(self, attr, value, pos, neg):
         self.attr = attr
         self.children = []
         self.value = value
+        self.pos = pos
+        self.neg = neg
         
     def __str__(self):
     	print "--- choice node ---"
