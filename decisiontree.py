@@ -191,16 +191,23 @@ def DTL(examples, attr_dict, parents, count, value, print_bool):
             node.children.append(child)
 
         return node
-'''
+
 # Implement chi-sq pruning
 def prune(node):
     can_prune = True
     observed = []
+    expected = []
     for child in node.children:
         if isinstance(child, choice_node):
             can_prune = False
         else:
-'''           
+            observed.append(child.pos)
+            expected.append(node.pos*((child.pos+child.neg)/(node.pos+node.neg))
+    if can_prune:
+        df = len(observed) - 1
+        test_stat = scipy.stats.chisquare(observes,expected,df)
+        if test_stat < 0.05:
+            
             
         
 # The classification of a group of split examples.
