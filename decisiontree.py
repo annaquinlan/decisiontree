@@ -3,6 +3,7 @@ decisiontree.py
 note that this will work even for non-binary classifications
 '''
 import sys
+import math
 
 def main():
     if len(sys.argv) != 2:
@@ -45,9 +46,8 @@ def main():
             all_classifs.add(ex_classif)
 
         node = DTL(examples, attr_dict, [], all_classifs, 0)
-        print node
         
-# Implementation of decision tree learning algorithm
+# Implementation of decision tree learning algorithm, with printing
 def DTL(examples, attr_dict, parents, all_classifs, count):
     attributes = attr_dict.keys()
     
@@ -79,7 +79,7 @@ def DTL(examples, attr_dict, parents, all_classifs, count):
     # Case 4: Recursive case. 
     else:
         print
-        attr = get_best_attr(attributes)
+        attr = get_best_attr(attr_dict, examples)
         node = choice_node(attr)
         values = list(attr_dict[attr][1])
         index = attr_dict[attr][0]
@@ -127,8 +127,8 @@ class choice_node:
     	return "---"
 
 '''    	
-def print_tree(node):
-    if class(node) == answer_node:
+def print_tree(node, attr_dict):
+    if isinstance(node, answer_node):
         print ": " + str(node.classif)
     else:
         print node.attr
@@ -138,26 +138,71 @@ def print_tree(node):
 # classifications. It also returns how many examples had that classification.
 def get_plurality(ex_list, classifs_set):
    
-    count_dict = {}
-    categories = list(classifs_set)
-    for c in categories:
-        count_dict[c] = 0
+    yes_ct = 0
+    no_ct = 0
     
     for ex in ex_list:
         classif = ex[-1]
-        count_dict[classif] += 1
+        if classif == "yes":
+            yes_ct += 1
+        else:
+            no_ct += 1
     
-    max = 0
-    arg_max = categories[0]
-    for c in categories:
-        if (count_dict[c] > max):
-            max = count_dict[c]
-            arg_max = c
-    return arg_max, max
+    if yes_ct > no_ct:
+        return 'yes', yes_ct
+    else:
+        return 'no', no_ct
+    
 
-def get_best_attr(attributes):
-    return attributes[0]
+def get_best_attr(attr_dict, examples):
+
+    # get entropy of examples list
+    yes_ct = 0
+    no_ct = 0
+    for ex in ex_list:
+        classif = ex[-1]
+        if classif == "yes":
+            yes_ct += 1
+        else:
+            no_ct += 1
     
+    entropy = get_entropy(yes_ct[0]/(len(ex_list)))
+    
+    attributes = attr_dict.keys()
+    max = 0
+    best_attr = attributes[0]
+    for attr in attributes:
+        values = list(attr_dict[attr][1])
+        index = attr_dict[attr][0]
+        
+        # Count examples with that value
+        exsbyvals_dict = {}
+        for val in values:
+            ex_ct_dict[val] = [0,0] # yes_ct, no_ct
+        
+        for ex in examples:
+            exval = ex[0][index]
+            exclassif = ex[1]
+            if exclassif == "yes":
+                ex_ct_dict[exval][0] += 1
+            else:
+                ex_ct_dict[exval][1] += 1
+        
+        remainder = 0
+        for val in values:
+            proportion = (ex_ct_dict[val][0] + ex_ct_dict[val][1])/len(examples)
+            q = ex_ct_dict[val][0]/(ex_ct_dict[val][0] + ex_ct_dict[val][1])
+            remainder += proportion * get_entropy(q)
+        
+        gain = entropy - remainder
+        if gain > max:
+            max = gain
+            best_attr = attr
+    
+    return best_attr
+    
+def get_entropy(q):
+    return -q*log(q, 2) - (1 - q)*log((1 - q), 2)
     
 if __name__ == "__main__":
     main()
