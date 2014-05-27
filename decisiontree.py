@@ -4,6 +4,7 @@ note that this will work even for non-binary classifications
 '''
 import sys
 import math
+import scipy.stats
 
 def main():
     if len(sys.argv) != 2:
@@ -44,6 +45,7 @@ def main():
         
         # This is tree trained on all data.
         print_bool = True
+        chisq_bool = False
         node = DTL(examples, attr_dict, [], 0, None, print_bool)
         
         # Tree trained on all examples except one
@@ -63,8 +65,38 @@ def main():
         n = (num*100.0)/denom
         print ( "%.2f" % n),
         print "%"
+        
+        '''
+         # This is tree trained on all data.
+        print_bool = True
+        node = DTL(examples, attr_dict, [], 0, None, print_bool)
+        
+        # Prune tree
+        chi_sq_tree
+        # Tree trained on all examples except one
+        chi_sq_num = 0.0
+        print_bool = False
+        for i, ex in enumerate(examples):
+            subset = examples[0:i] + examples[i+1:]
+            node = DTL(subset, attr_dict, [], 0, None, print_bool)
+            print "--------"
+            print i, str(ex)
+            result = classify(ex, node, attr_dict)
+            print result.classif
+            if result.classif == ex[-1]:
+                chi_sq_num += 1
+        print "Accuracy on training set: ",
+        chi_sq_n = (chi_sq_num*100.0)/denom
+        print ( "%.2f" % chi_sq_n),
+        print "%"
+        
+        if chi_sq_num > num:
+            print "Chi-Square pruning improved accuracy by",
+            print (chi_sq_n - n),
+            print "%"
+        '''
                 
-    
+# Classifies data item by recursively traversing tree created by DTL, using item's attribute values to choose path
 def classify(example, node, attr_dict):
 
     if isinstance(node, answer_node):
@@ -138,7 +170,19 @@ def DTL(examples, attr_dict, parents, count, value, print_bool):
                 print count*'| ' + str(attr) + " = " + str(val),
             child = DTL(subexamples, subattr_dict, examples, count+1, val, print_bool)
             node.children.append(child)
+
         return node
+'''
+# Implement chi-sq pruning
+def prune(node):
+    can_prune = True
+    observed = []
+    for child in node.children:
+        if isinstance(child, choice_node):
+            can_prune = False
+        else:
+'''           
+            
         
 # The classification of a group of split examples.
 class answer_node:
