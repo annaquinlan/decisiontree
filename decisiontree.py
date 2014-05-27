@@ -65,6 +65,7 @@ def main():
         n = (num*100.0)/denom
         print ( "%.2f" % n),
         print "%"
+        print_tree(node, 0)
         
         '''
          # This is tree trained on all data.
@@ -216,7 +217,6 @@ def prune(node):
             node.attr = None
             node.isanswer = True
             
-        
 # The classification of a group of split examples.
 class Node:
     def __init__(self, classif, value, pos, neg, attr, answer):
@@ -232,14 +232,16 @@ class Node:
     	return self.classif
         
 
-
-'''    	
-def print_tree(node, attr_dict):
-    if isinstance(node, answer_node):
-        print ": " + str(node.classif)
+ 	
+def print_tree(node, count):
+    if node.isanswer:
+        print ": " + node.classif
     else:
-        print node.attr
-''' 
+        print
+        for child in node.children:
+            print count*'| ' + node.attr + " = " + child.value,
+            print_tree(child, count+1)
+
 
 # Get_plurality returns classification with highest percentage given example list and possible 
 # classifications. It also returns how many examples had that classification.
