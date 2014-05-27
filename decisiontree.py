@@ -64,7 +64,7 @@ def DTL(examples, attr_dict, parents, all_classifs, count):
     elif get_plurality(examples, all_classifs)[1] == len(examples):
         
         # We'll just take the classification of the first example because they're all the same.
-        classif = examples[1][-1]
+        classif = examples[0][-1]
         node = answer_node(classif)
         print ": " + classif
         return node
@@ -157,16 +157,16 @@ def get_plurality(ex_list, classifs_set):
 def get_best_attr(attr_dict, examples):
 
     # get entropy of examples list
-    yes_ct = 0
-    no_ct = 0
-    for ex in ex_list:
+    yes_ct = 0.0
+    no_ct = 0.0
+    for ex in examples:
         classif = ex[-1]
         if classif == "yes":
             yes_ct += 1
         else:
             no_ct += 1
     
-    entropy = get_entropy(yes_ct[0]/(len(ex_list)))
+    entropy = get_entropy(yes_ct/(len(examples)))
     
     attributes = attr_dict.keys()
     max = 0
@@ -176,9 +176,9 @@ def get_best_attr(attr_dict, examples):
         index = attr_dict[attr][0]
         
         # Count examples with that value
-        exsbyvals_dict = {}
+        ex_ct_dict = {}
         for val in values:
-            ex_ct_dict[val] = [0,0] # yes_ct, no_ct
+            ex_ct_dict[val] = [0.0,0.0] # yes_ct, no_ct
         
         for ex in examples:
             exval = ex[0][index]
@@ -191,8 +191,11 @@ def get_best_attr(attr_dict, examples):
         remainder = 0
         for val in values:
             proportion = (ex_ct_dict[val][0] + ex_ct_dict[val][1])/len(examples)
-            q = ex_ct_dict[val][0]/(ex_ct_dict[val][0] + ex_ct_dict[val][1])
-            remainder += proportion * get_entropy(q)
+            if ex_ct_dict[val][0] + ex_ct_dict[val][1] != 0:  
+                q = ex_ct_dict[val][0]/(ex_ct_dict[val][0] + ex_ct_dict[val][1])
+                if q != 0 and q != 1:
+                    remainder += proportion * get_entropy(q)
+                # else entropy is 0 -- nothing added to remainder
         
         gain = entropy - remainder
         if gain > max:
@@ -202,7 +205,7 @@ def get_best_attr(attr_dict, examples):
     return best_attr
     
 def get_entropy(q):
-    return -q*log(q, 2) - (1 - q)*log((1 - q), 2)
+    return -q*math.log(q, 2) - (1 - q)*math.log((1 - q), 2)
     
 if __name__ == "__main__":
     main()
