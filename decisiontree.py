@@ -15,6 +15,7 @@ def main():
     else:
         f = open(sys.argv[1], 'r')
         text = f.readlines()
+        f.close()
         
         # get the column headers for attributes
         columns = text[0].strip('\n')
@@ -120,6 +121,7 @@ def main():
             print "Chi-Square pruning reduced leave-one-out accuracy by",
             print (accuracy_leaveoneout - chi_sq_n),
             print "%"
+        print
                 
 # Classifies data item by recursively traversing tree created by DTL, using item's attribute values to choose path
 def classify(example, node, attr_dict):
@@ -182,6 +184,9 @@ def DTL(examples, attr_dict, parents, count, value):
         else:
             p = len(examples)-count
             n = count
+        if p == 0 or n == 0:
+            print "CHOICE NODE WITH p/n == 0!"
+            print value + " : " + attr
         node = Node(None, value, p, n, attr, False)
         values = list(attr_dict[attr][1])
         index = attr_dict[attr][0]
@@ -226,13 +231,27 @@ def prune(node):
         else:
             obs_pos = float(child.pos)
             obs_neg = float(child.neg)
-            if obs_pos < 5 and obs_neg < 5:
-                can_prune = False
-            else:
-                expected_neg = node_neg_float*((obs_pos + obs_neg)/node_n)
-                expected_pos = node_pos_float*((obs_pos + obs_neg)/node_n)
-                test_stat += math.pow((obs_pos-expected_pos), 2)/(expected_pos) 
-                test_stat += math.pow((obs_neg-expected_neg), 2)/(expected_neg) 
+            #if obs_pos < 5 and obs_neg < 5:
+                #can_prune = False
+                #print "Less than 5"
+            #else:
+            if node_n == 0:
+                print "node n is 0"
+                print node.attr
+                print child.classif
+            expected_neg = node_neg_float*((obs_pos + obs_neg)/node_n)
+            expected_pos = node_pos_float*((obs_pos + obs_neg)/node_n)
+            if expected_neg == 0 or expected_pos == 0:
+                print "expected 0"
+                print expected_pos, expected_neg
+                print obs_pos, obs_neg
+                print node_pos_float, node_neg_float
+                print node.attr
+                print node.value
+                print child.value
+                print child.classif
+            test_stat += math.pow((obs_pos-expected_pos), 2)/(expected_pos) 
+            test_stat += math.pow((obs_neg-expected_neg), 2)/(expected_neg) 
                 #observed.append(pos_float)
                 #expected.append(node_pos_float*((pos_float + neg_float)/node_n))
     if (can_prune):
