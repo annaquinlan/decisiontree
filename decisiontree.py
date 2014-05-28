@@ -241,6 +241,7 @@ def prune(node):
                 print child.classif
             expected_neg = node_neg_float*((obs_pos + obs_neg)/node_n)
             expected_pos = node_pos_float*((obs_pos + obs_neg)/node_n)
+            # if obs_pos or obs_neg are zero, then we don't add anything
             if expected_neg == 0 or expected_pos == 0:
                 print "expected 0"
                 print expected_pos, expected_neg
