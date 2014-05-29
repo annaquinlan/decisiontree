@@ -78,11 +78,12 @@ def main():
         
         
         # Use chi-square test to prune tree
+        node = DTL(examples, attr_dict, [], None)
         prune(node)
         print
         print "***Pruned tree, trained on all data:"
         print_tree(node, 0)
-        
+
         # Chi-Sq: accuracy on training set
         correct_alldata_chisq = 0.0
         for ex in examples:
@@ -230,7 +231,6 @@ def DTL(examples, attr_dict, parents, value):
 
 # Implement chi-sq pruning
 def prune(node):
-    
     if node.isanswer:
         return
     
@@ -258,11 +258,10 @@ def prune(node):
             # If obs_pos or obs_neg are not zero, sum up for test stat
             if expected_neg != 0 and expected_pos != 0:
                 test_stat += math.pow((obs_pos-expected_pos), 2)/(expected_pos) 
-                test_stat += math.pow((obs_neg-expected_neg), 2)/(expected_neg) 
+                test_stat += math.pow((obs_neg-expected_neg), 2)/(expected_neg)
 
     # If all children are leaves, see if we can prune 
     if (can_prune):
-        
         df = len(node.children) - 1
         pval = 1 - scipy.stats.chi2.cdf(test_stat, df)
         
