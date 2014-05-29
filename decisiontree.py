@@ -1,6 +1,6 @@
 '''
+Sophia Davis and Anna Quinlan
 decisiontree.py
-note that this will work even for non-binary classifications
 '''
 import sys
 import math
@@ -8,6 +8,7 @@ import scipy.stats
 import numpy
 
 def main():
+
     if len(sys.argv) != 2:
         sys.stderr.write('Usage: python decisiontree.py name_of_file.txt')
         sys.exit(1)
@@ -41,14 +42,13 @@ def main():
             examples.append([ex_attrs, ex_classif])
             
             ### keep track of all possible attribute values (in attr_dict)
-            ### keep track of all possible classifications
             for i, a in enumerate(attrs):
                 attr_dict[a][1].add(ex_attrs[i])
         
         # This is tree trained on all data.
         print
         print "***Un-pruned tree, trained on all data:"
-        node = DTL(examples, attr_dict, [], 0, None)
+        node = DTL(examples, attr_dict, [], None)
         print_tree(node, 0)
         
         denom = len(examples)
@@ -67,7 +67,7 @@ def main():
         correct_leaveoneout = 0.0
         for i, ex in enumerate(examples):
             subset = examples[0:i] + examples[i+1:]
-            node = DTL(subset, attr_dict, [], 0, None)
+            node = DTL(subset, attr_dict, [], None)
             result = classify(ex, node, attr_dict)
             if result.classif == ex[-1]:
                 correct_leaveoneout += 1
@@ -77,7 +77,7 @@ def main():
         print "%"
         
         
-        # Prune tree
+        # Use chi-square test to prune tree
         prune(node)
         print
         print "***Pruned tree, trained on all data:"
@@ -95,11 +95,11 @@ def main():
         print ( "%.2f" % accuracy_alldata_chisq),
         print "%"
         
-        # Chi-Sq: Leave One Out
+        # Chi-Sq Pruning and Leave One Out Training
         chi_sq_num = 0.0
         for i, ex in enumerate(examples):
             subset = examples[0:i] + examples[i+1:]
-            node = DTL(subset, attr_dict, [], 0, None)
+            node = DTL(subset, attr_dict, [], None)
             prune(node)
             result = classify(ex, node, attr_dict)
             if result.classif == ex[-1]:
@@ -113,31 +113,50 @@ def main():
         print
         if chi_sq_num > correct_leaveoneout:
             print "Chi-Square pruning improved leave-one-out accuracy by",
-            print (chi_sq_n - accuracy_leaveoneout),
+            print ( "%.2f" % (chi_sq_n - accuracy_leaveoneout)),
             print "%"
         elif chi_sq_num == correct_leaveoneout:
             print "Chi-Square pruning did not change leave-one-out accuracy."
         else:
             print "Chi-Square pruning reduced leave-one-out accuracy by",
-            print (accuracy_leaveoneout - chi_sq_n),
+            print ( "%.2f" % (accuracy_leaveoneout - chi_sq_n)),
             print "%"
         print
+
+# Node class for both answer and choice nodes.
+class Node:
+    def __init__(self, classif, value, pos, neg, attr, answer):
+        self.classif = classif
+        self.attr = attr
+        self.value = value
+        self.pos = pos
+        self.neg = neg
+        self.isanswer = answer
+        self.children = []
+        
+    def __str__(self):
+    	return self.classif
+        
                 
-# Classifies data item by recursively traversing tree created by DTL, using item's attribute values to choose path
+# Classifies example by recursively traversing tree created by DTL, using example's attribute values to choose path
+# Returns answer node to which example would belong
 def classify(example, node, attr_dict):
 
     if node.isanswer:
         return node
     
+    # We find the index of this node's attribute by looking in our attr_dict
     ex_val_in = attr_dict[node.attr][0]
+    # We use the index to find the value of the example
     ex_val = example[0][ex_val_in]
     
+    # Recurse on appropriate child node
     for child in node.children:
         if child.value == ex_val:
             return classify(example, child, attr_dict)
         
-# Implementation of decision tree learning algorithm, with printing
-def DTL(examples, attr_dict, parents, count, value):
+# Implementation of decision tree learning algorithm
+def DTL(examples, attr_dict, parents, value):
     attributes = attr_dict.keys()
     
     # Case 1: If there are no more examples:
@@ -184,9 +203,6 @@ def DTL(examples, attr_dict, parents, count, value):
         else:
             p = len(examples)-count
             n = count
-        if p == 0 or n == 0:
-            print "CHOICE NODE WITH p/n == 0!"
-            print value + " : " + attr
         node = Node(None, value, p, n, attr, False)
         values = list(attr_dict[attr][1])
         index = attr_dict[attr][0]
@@ -207,7 +223,7 @@ def DTL(examples, attr_dict, parents, count, value):
         # Recurse on each group of split examples.
         for val in values:
             subexamples = exsbyvals_dict[val]
-            child = DTL(subexamples, subattr_dict, examples, count+1, val)
+            child = DTL(subexamples, subattr_dict, examples, val)
             node.children.append(child)
 
         return node
@@ -217,50 +233,41 @@ def prune(node):
     
     if node.isanswer:
         return
+    
+    # Make sure we're only pruning when all children are leaves.
     can_prune = True
-    #observed = []
-    #expected = []
+
+    # Keep track of positive and negative examples in node
     node_pos_float = float(node.pos)
     node_neg_float = float(node.neg)
     node_n = float(node.pos+node.neg)
     test_stat = 0.0
+    
     for child in node.children:
+    
+        # Only prune if all children are leaves
         if not(child.isanswer):
             can_prune = False
             prune(child)
         else:
             obs_pos = float(child.pos)
             obs_neg = float(child.neg)
-            #if obs_pos < 5 and obs_neg < 5:
-                #can_prune = False
-                #print "Less than 5"
-            #else:
-            if node_n == 0:
-                print "node n is 0"
-                print node.attr
-                print child.classif
             expected_neg = node_neg_float*((obs_pos + obs_neg)/node_n)
             expected_pos = node_pos_float*((obs_pos + obs_neg)/node_n)
-            # if obs_pos or obs_neg are zero, then we don't add anything
-            if expected_neg == 0 or expected_pos == 0:
-                print "expected 0"
-                print expected_pos, expected_neg
-                print obs_pos, obs_neg
-                print node_pos_float, node_neg_float
-                print node.attr
-                print node.value
-                print child.value
-                print child.classif
-            test_stat += math.pow((obs_pos-expected_pos), 2)/(expected_pos) 
-            test_stat += math.pow((obs_neg-expected_neg), 2)/(expected_neg) 
-                #observed.append(pos_float)
-                #expected.append(node_pos_float*((pos_float + neg_float)/node_n))
+            
+            # If obs_pos or obs_neg are not zero, sum up for test stat
+            if expected_neg != 0 and expected_pos != 0:
+                test_stat += math.pow((obs_pos-expected_pos), 2)/(expected_pos) 
+                test_stat += math.pow((obs_neg-expected_neg), 2)/(expected_neg) 
+
+    # If all children are leaves, see if we can prune 
     if (can_prune):
-        #print "observed: ", observed
-        #print "expected: ", expected
         
         df = len(node.children) - 1
         pval = 1 - scipy.stats.chi2.cdf(test_stat, df)
+        
+        # Attribute isn't worth splitting on if p-value is greater than 0.05
+        # Change to answer node 
         if pval > 0.05:
             if node.pos > node.neg:
                 node.classif = "yes"
@@ -269,23 +276,8 @@ def prune(node):
             node.children = []
             node.attr = None
             node.isanswer = True
-            
-# The classification of a group of split examples.
-class Node:
-    def __init__(self, classif, value, pos, neg, attr, answer):
-        self.classif = classif
-        self.attr = attr
-        self.value = value
-        self.pos = pos
-        self.neg = neg
-        self.isanswer = answer
-        self.children = []
-        
-    def __str__(self):
-    	return self.classif
-        
 
- 	
+# Print formatted tree 	
 def print_tree(node, count):
     if node.isanswer:
         print ": " + node.classif
@@ -316,10 +308,10 @@ def get_plurality(ex_list):
     else:
         return 'no', no_ct
     
-
+# Implementation of information gain algorithm to obtain best attribute.
 def get_best_attr(attr_dict, examples):
 
-    # get entropy of examples list
+    # Get entropy of examples list
     yes_ct = 0.0
     no_ct = 0.0
     for ex in examples:
@@ -333,11 +325,14 @@ def get_best_attr(attr_dict, examples):
     attributes = attr_dict.keys()
     max = 0
     best_attr = attributes[0]
+    
     for attr in attributes:
+        
+        # Find where the attribute is stored and possible values.
         values = list(attr_dict[attr][1])
         index = attr_dict[attr][0]
         
-        # Count examples with that value
+        # Count examples with each value and their respective classifications
         ex_ct_dict = {}
         for val in values:
             ex_ct_dict[val] = [0.0,0.0] # yes_ct, no_ct
@@ -350,11 +345,17 @@ def get_best_attr(attr_dict, examples):
             else:
                 ex_ct_dict[exval][1] += 1
         
-        remainder = 0
+        # Calculate the remainder
+        remainder = 0.0
         for val in values:
             proportion = (ex_ct_dict[val][0] + ex_ct_dict[val][1])/len(examples)
+            
+            # Make sure the denominator doesn't equal zero (there are examples with that value)
             if ex_ct_dict[val][0] + ex_ct_dict[val][1] != 0:  
+            
+                # q is proportion of positive examples
                 q = ex_ct_dict[val][0]/(ex_ct_dict[val][0] + ex_ct_dict[val][1])
+                
                 if q != 0 and q != 1:
                     remainder += proportion * get_entropy(q)
                 # else entropy is 0 -- nothing added to remainder
@@ -365,21 +366,10 @@ def get_best_attr(attr_dict, examples):
             best_attr = attr
     
     return best_attr
-    
+
+# Equation for getting entropy for a boolean random variable    
 def get_entropy(q):
     return -q*math.log(q, 2) - (1 - q)*math.log((1 - q), 2)
     
 if __name__ == "__main__":
     main()
-    
-    '''    
-    else:
-        attr = best attribute of examples and attributes
-        make a choice node with that attribute
-        for val in attr.getvalues()
-            subexamples = [examples where attr has value val]
-            subattributes = attributes - attr
-            child = DTL(subexamples, subattr, examples]
-            add child to node 
-        return node
-    '''
